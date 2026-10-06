@@ -65,9 +65,9 @@ def _integrand(u, logK, K, S, T, r, q, p):
 
 
 # Gauss-Legendre nodes on [0, 1], reused for every panel.
-_GL_X, _GL_W = np.polynomial.legendre.leggauss(48)
-_GL_X = 0.5 * (_GL_X + 1.0)
-_GL_W = 0.5 * _GL_W
+_GL_NODES, _GL_WEIGHTS = np.polynomial.legendre.leggauss(48)
+_GL_X = 0.5 * (_GL_NODES + 1.0)
+_GL_W = 0.5 * _GL_WEIGHTS
 _PANEL_WIDTH = 25.0
 
 
