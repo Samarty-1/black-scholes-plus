@@ -9,3 +9,4 @@ build/
 dist/
 .streamlit/secrets.toml
 .DS_Store
+site/

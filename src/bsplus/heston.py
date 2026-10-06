@@ -192,7 +192,7 @@ class CalibrationResult:
     message: str
     model_vols: np.ndarray
     n_starts: int = 1
-    start_rmses: tuple = ()  # RMSE reached from each start after the short pass
+    start_rmses: tuple[float, ...] = ()  # RMSE from each start after the short pass
 
 
 def _start_points(atm_var, n, seed):
@@ -282,7 +282,7 @@ def calibrate(
 
     if len(starts) == 1:
         sol = solve(starts[0], 400)
-        start_rmses = ()
+        start_rmses: tuple[float, ...] = ()
     else:
         short = [solve(x, 60) for x in starts]
         start_rmses = tuple(float(np.sqrt(2 * s.cost / s.fun.size)) for s in short)

@@ -102,6 +102,7 @@ def fit(k, market_vols, T, weights=None) -> SVIFit:
             if best is None or sol.cost < best.cost:
                 best = sol
 
+    assert best is not None  # the multi-start loop always runs
     p = SVIParams(*map(float, best.x))
     rmse = float(np.sqrt(np.mean((implied_vol(k, T, p) - vols) ** 2)))
     grid = np.linspace(k.min() - 1.0, k.max() + 1.0, 801)

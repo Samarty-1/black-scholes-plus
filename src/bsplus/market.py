@@ -28,7 +28,13 @@ from __future__ import annotations
 import datetime as dt
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as exc:  # pragma: no cover - depends on the environment
+    raise ImportError(
+        'bsplus.market needs pandas: pip install "bsplus[data]"'
+    ) from exc
 
 from .american import american_implied_vol
 from .black_scholes import price as bs_price

@@ -20,5 +20,7 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Lint
         run: ruff check src tests app examples
+      - name: Type check
+        run: mypy
       - name: Test (library + headless dashboard)
         run: pytest -q

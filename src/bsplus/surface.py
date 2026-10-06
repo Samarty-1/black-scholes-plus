@@ -166,6 +166,7 @@ def fit_ssvi(k, t, market_vols, weights=None) -> SSVIFit:
             if best is None or sol.cost < best.cost:
                 best = sol
 
+    assert best is not None  # the multi-start loop always runs
     thetas, rho, eta, gamma = _unpack(best.x, n)
     surf = SSVISurface(expiries, thetas, rho, eta, gamma)
     err = surf.implied_vol(k, t) - vols

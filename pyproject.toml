@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,18 +7,45 @@ name = "bsplus"
 version = "0.2.0"
 description = "Black-Scholes and beyond: Greeks, robust implied vol, American trees, barriers, Heston, SVI/SSVI and local vol, validated on real SPY data"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
+keywords = ["options", "black-scholes", "implied-volatility", "heston", "svi", "ssvi",
+            "local-volatility", "quantitative-finance", "derivatives"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed",
+]
 dependencies = ["numpy>=1.24", "scipy>=1.10"]
+
+[project.urls]
+Homepage = "https://github.com/Samarty-1/black-scholes-plus"
+Documentation = "https://samarty-1.github.io/black-scholes-plus/"
+Source = "https://github.com/Samarty-1/black-scholes-plus"
+Issues = "https://github.com/Samarty-1/black-scholes-plus/issues"
 
 [project.optional-dependencies]
 data = ["pandas>=2.0", "yfinance>=0.2.40"]
 app = ["bsplus[data]", "streamlit>=1.35", "plotly>=5.20"]
 examples = ["bsplus[data]", "matplotlib>=3.7"]
-dev = ["bsplus[app,examples]", "pytest>=8", "ruff>=0.5"]
+docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
+dev = ["bsplus[app,examples]", "pytest>=8", "ruff>=0.5", "mypy>=1.10", "hypothesis>=6.100"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+bsplus = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -34,3 +61,10 @@ select = ["E", "F", "W", "I", "B", "UP"]
 [tool.ruff.lint.per-file-ignores]
 "app/dashboard.py" = ["E402"]  # imports follow the sys.path bootstrap
 "examples/*.py" = ["E501"]  # long lines are a Markdown report template
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src/bsplus"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true

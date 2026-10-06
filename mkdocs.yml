@@ -1,0 +1,79 @@
+site_name: BS+ — Black-Scholes and beyond
+site_description: Option pricing in Python, from Black-Scholes to arbitrage-free vol surfaces, validated on real SPY data.
+site_url: https://samarty-1.github.io/black-scholes-plus/
+repo_url: https://github.com/Samarty-1/black-scholes-plus
+repo_name: Samarty-1/black-scholes-plus
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: amber
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - scheme: default
+      primary: amber
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  font:
+    text: Fira Sans
+    code: Fira Code
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Guide:
+      - Getting started: guide/getting-started.md
+      - Pricing and Greeks: guide/pricing.md
+      - Volatility surfaces: guide/surfaces.md
+      - Real market data: guide/market-data.md
+  - SPY study: spy-study.md
+  - API reference:
+      - black_scholes: api/black_scholes.md
+      - implied_vol: api/implied_vol.md
+      - american: api/american.md
+      - barrier: api/barrier.md
+      - heston: api/heston.md
+      - svi: api/svi.md
+      - surface: api/surface.md
+      - market: api/market.md
+      - monte_carlo: api/monte_carlo.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+exclude_docs: |
+  screenshots/README.md

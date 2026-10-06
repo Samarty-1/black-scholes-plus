@@ -1,0 +1,3 @@
+# `bsplus.barrier`
+
+::: bsplus.barrier
