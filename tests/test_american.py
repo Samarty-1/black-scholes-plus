@@ -41,11 +41,25 @@ def test_american_put_has_positive_early_exercise_premium():
 
 
 def test_tree_greeks_close_to_black_scholes_for_european_like_case():
-    res = american_price(100, 100, 0.5, 0.0, 0.25, "call", q=0.0, steps=501)
-    g = bs.greeks(100, 100, 0.5, 0.0, 0.25, "call")
+    # r > q = 0, so a call is never exercised early and every Greek should
+    # match Black-Scholes. (At r = q exactly the American price has a kink in
+    # r: below it early exercise of the call becomes optimal.)
+    res = american_price(100, 100, 0.5, 0.03, 0.25, "call", q=0.0, steps=501)
+    g = bs.greeks(100, 100, 0.5, 0.03, 0.25, "call")
     assert res.delta == pytest.approx(g.delta, abs=2e-3)
     assert res.gamma == pytest.approx(g.gamma, rel=0.02)
     assert res.theta == pytest.approx(g.theta, rel=0.02)
+    assert res.vega == pytest.approx(g.vega, rel=2e-3)
+    assert res.rho == pytest.approx(g.rho, rel=5e-3)
+
+
+def test_american_put_vega_and_rho_are_sensible():
+    res = american_price(100, 100, 1.0, 0.05, 0.25, "put")
+    euro = bs.greeks(100, 100, 1.0, 0.05, 0.25, "put")
+    assert 0 < res.vega < 1.05 * euro.vega  # early exercise caps optionality
+    # A higher rate makes early exercise of a put more attractive, so the
+    # American put loses less value than the European one: rho is less negative.
+    assert euro.rho < res.rho < 0
 
 
 def test_deep_itm_put_is_exercised():

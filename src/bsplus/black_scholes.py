@@ -37,6 +37,8 @@ def _pdf(x):
 def _is_call(option_type):
     """Map 'call'/'put' (or arrays of them) to a boolean array."""
     arr = np.asarray(option_type)
+    if arr.dtype.kind == "O" and all(isinstance(x, str) for x in arr.ravel()):
+        arr = arr.astype(str)  # e.g. a pandas column of strings
     if arr.dtype.kind in "US":
         lowered = np.char.lower(arr.astype(str))
         valid = np.isin(lowered, ["call", "put", "c", "p"])
@@ -54,15 +56,17 @@ def _d1_d2(S, K, T, r, sigma, q):
     return d1, d2, vol_sqrt_t
 
 
-def _prepare(S, K, T, r, sigma, q):
-    S, K, T, r, sigma, q = np.broadcast_arrays(
-        *(np.asarray(x, dtype=float) for x in (S, K, T, r, sigma, q))
+def _prepare(S, K, T, r, sigma, q, option_type="call"):
+    """Broadcast all inputs (including the option type) to one shape."""
+    call = _is_call(option_type)
+    S, K, T, r, sigma, q, call = np.broadcast_arrays(
+        *(np.asarray(x, dtype=float) for x in (S, K, T, r, sigma, q)), call
     )
     if np.any(S <= 0) or np.any(K <= 0):
         raise ValueError("S and K must be strictly positive")
     if np.any(T < 0) or np.any(sigma < 0):
         raise ValueError("T and sigma must be non-negative")
-    return S, K, T, r, sigma, q
+    return S, K, T, r, sigma, q, call
 
 
 def _ret(x):
@@ -76,8 +80,7 @@ def price(S, K, T, r, sigma, option_type="call", q=0.0):
     When ``sigma * sqrt(T) == 0`` the price collapses to the discounted
     intrinsic value of the forward, which is the exact limit of the formula.
     """
-    S, K, T, r, sigma, q = _prepare(S, K, T, r, sigma, q)
-    call = np.broadcast_to(_is_call(option_type), S.shape)
+    S, K, T, r, sigma, q, call = _prepare(S, K, T, r, sigma, q, option_type)
     d1, d2, vst = _d1_d2(S, K, T, r, sigma, q)
 
     df_q = np.exp(-q * T)
@@ -116,8 +119,7 @@ def greeks(S, K, T, r, sigma, option_type="call", q=0.0) -> Greeks:
     Greeks are undefined when ``sigma * sqrt(T) == 0``; those entries are NaN
     (the price is still returned).
     """
-    S, K, T, r, sigma, q = _prepare(S, K, T, r, sigma, q)
-    call = np.broadcast_to(_is_call(option_type), S.shape)
+    S, K, T, r, sigma, q, call = _prepare(S, K, T, r, sigma, q, option_type)
     sign = np.where(call, 1.0, -1.0)
     d1, d2, vst = _d1_d2(S, K, T, r, sigma, q)
     degenerate = vst <= 0
@@ -163,6 +165,20 @@ def greeks(S, K, T, r, sigma, option_type="call", q=0.0) -> Greeks:
         for key, value in out.items()
     }
     return Greeks(**out)
+
+
+def price_cash_dividends(S, K, T, r, sigma, dividends, option_type="call"):
+    """European price with discrete cash dividends (escrowed-dividend model).
+
+    ``dividends`` is a sequence of ``(time_in_years, amount)``; those paid
+    before expiry are removed from the spot at their present value, and
+    ``sigma`` is the volatility of what remains. Dividends after ``T`` are
+    ignored.
+    """
+    pv = sum(a * np.exp(-r * t) for t, a in dividends if 0 < t <= T)
+    if pv >= S:
+        raise ValueError("dividends exceed the share price")
+    return price(S - pv, K, T, r, sigma, option_type)
 
 
 def black76_price(F, K, T, r, sigma, option_type="call"):

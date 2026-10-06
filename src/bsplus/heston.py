@@ -191,6 +191,22 @@ class CalibrationResult:
     success: bool
     message: str
     model_vols: np.ndarray
+    n_starts: int = 1
+    start_rmses: tuple = ()  # RMSE reached from each start after the short pass
+
+
+def _start_points(atm_var, n, seed):
+    """Heuristic start plus ``n - 1`` scrambled-Sobol points in a plausible box."""
+    starts = [np.array([atm_var, 2.0, atm_var, 0.5, -0.5])]
+    if n > 1:
+        from scipy.stats import qmc
+
+        m = int(np.ceil(np.log2(n - 1))) if n > 2 else 0
+        u = qmc.Sobol(d=5, scramble=True, seed=seed).random_base2(m)[: n - 1]
+        lo = np.array([0.5 * atm_var, 0.3, 0.5 * atm_var, 0.1, -0.95])
+        hi = np.array([2.0 * atm_var, 6.0, 2.0 * atm_var, 1.5, 0.0])
+        starts += list(qmc.scale(u, lo, hi))
+    return starts
 
 
 def calibrate(
@@ -201,47 +217,77 @@ def calibrate(
     r,
     q=0.0,
     x0: HestonParams | None = None,
+    n_starts: int = 1,
+    weights=None,
+    seed: int = 0,
 ):
     """Fit Heston parameters to a set of market implied volatilities.
 
     Minimizes implied-volatility errors (rather than price errors) so that
     cheap OTM wings carry as much weight as expensive ITM options. Quotes are
     grouped by maturity so each slice is priced with one vectorized call.
+
+    ``q`` may be a scalar or an array with one value per quote (constant
+    within an expiry), so each expiry can use its own market-implied forward
+    ``F = S exp((r - q) T)``.
+
+    The Heston objective is not convex, and a local optimizer from a single
+    start can stop at a poor fit. With ``n_starts > 1`` the fit first runs a
+    short pass from the heuristic start plus ``n_starts - 1`` scrambled-Sobol
+    points, then refines only the best one to convergence.
     """
     strikes = np.asarray(strikes, dtype=float)
     maturities = np.asarray(maturities, dtype=float)
     market_vols = np.asarray(market_vols, dtype=float)
     if not (strikes.shape == maturities.shape == market_vols.shape):
         raise ValueError("strikes, maturities and market_vols must share a shape")
+    q_arr = np.broadcast_to(np.asarray(q, dtype=float), strikes.shape)
+    wts = np.ones_like(market_vols) if weights is None else np.asarray(weights, dtype=float)
 
-    atm = float(np.median(market_vols))
-    if x0 is None:
-        x0 = HestonParams(v0=atm**2, kappa=2.0, theta=atm**2, xi=0.5, rho=-0.5)
     lb = np.array([1e-4, 0.05, 1e-4, 0.01, -0.99])
     ub = np.array([2.0, 15.0, 2.0, 3.0, 0.99])
     unique_t = np.unique(maturities)
+    slices = []
+    for t in unique_t:
+        m = maturities == t
+        q_t = q_arr[m]
+        if np.ptp(q_t) > 1e-12:
+            raise ValueError("q must be constant within each expiry")
+        slices.append((t, m, float(q_t[0])))
 
     def model_vols(x):
         p = HestonParams(*x)
         out = np.empty_like(market_vols)
-        for t in unique_t:
-            m = maturities == t
-            out[m] = implied_vol_smile(S, strikes[m], t, r, p, q)
+        for t, m, q_t in slices:
+            out[m] = implied_vol_smile(S, strikes[m], t, r, p, q_t)
         return out
 
     def residuals(x):
-        mv = model_vols(x)
-        res = mv - market_vols
+        res = wts * (model_vols(x) - market_vols)
         # A failed inversion means the price left the arbitrage bounds - penalise.
         return np.where(np.isfinite(res), res, 1.0)
 
-    sol = optimize.least_squares(
-        residuals,
-        x0=np.clip(np.array(list(x0.as_dict().values())), lb, ub),
-        bounds=(lb, ub),
-        x_scale="jac",
-        max_nfev=400,
-    )
+    atm_var = float(np.median(market_vols)) ** 2
+    if x0 is not None:
+        starts = [np.array(list(x0.as_dict().values()))]
+        starts += _start_points(atm_var, n_starts, seed)[1:]
+    else:
+        starts = _start_points(atm_var, n_starts, seed)
+
+    def solve(x_init, max_nfev):
+        return optimize.least_squares(
+            residuals, x0=np.clip(x_init, lb + 1e-9, ub - 1e-9), bounds=(lb, ub),
+            x_scale="jac", max_nfev=max_nfev,
+        )
+
+    if len(starts) == 1:
+        sol = solve(starts[0], 400)
+        start_rmses = ()
+    else:
+        short = [solve(x, 60) for x in starts]
+        start_rmses = tuple(float(np.sqrt(2 * s.cost / s.fun.size)) for s in short)
+        sol = solve(min(short, key=lambda s: s.cost).x, 400)
+
     fitted = model_vols(sol.x)
     rmse = float(np.sqrt(np.nanmean((fitted - market_vols) ** 2)))
     return CalibrationResult(
@@ -250,4 +296,6 @@ def calibrate(
         success=bool(sol.success),
         message=str(sol.message),
         model_vols=fitted,
+        n_starts=len(starts),
+        start_rmses=start_rmses,
     )

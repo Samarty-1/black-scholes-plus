@@ -69,10 +69,9 @@ def implied_vol(
         Implied volatility; ``NaN`` where the price violates no-arbitrage
         bounds or ``T <= 0``.
     """
-    price, S, K, T, r, q = np.broadcast_arrays(
-        *(np.asarray(x, dtype=float) for x in (price, S, K, T, r, q))
+    price, S, K, T, r, q, call = np.broadcast_arrays(
+        *(np.asarray(x, dtype=float) for x in (price, S, K, T, r, q)), _is_call(option_type)
     )
-    call = np.broadcast_to(_is_call(option_type), price.shape)
 
     disc = np.exp(-r * T)
     F = S * np.exp((r - q) * T)

@@ -17,19 +17,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
-        run: pip install -e ".[app,dev]"
+        run: pip install -e ".[dev]"
       - name: Lint
-        run: ruff check src tests app
-      - name: Test
+        run: ruff check src tests app examples
+      - name: Test (library + headless dashboard)
         run: pytest -q
-      - name: Dashboard smoke test
-        run: |
-          python - <<'PY'
-          from streamlit.testing.v1 import AppTest
-          at = AppTest.from_file("app/dashboard.py", default_timeout=180)
-          at.run()
-          assert not at.exception, at.exception
-          [b for b in at.button if "Calibrate" in b.label][0].click().run()
-          assert not at.exception, at.exception
-          print("dashboard OK")
-          PY

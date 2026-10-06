@@ -4,16 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bsplus"
-version = "0.1.0"
-description = "Black-Scholes and beyond: Greeks, robust implied vol, American trees, Heston, SVI, with an interactive dashboard"
+version = "0.2.0"
+description = "Black-Scholes and beyond: Greeks, robust implied vol, American trees, barriers, Heston, SVI/SSVI and local vol, validated on real SPY data"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "scipy>=1.10"]
 
 [project.optional-dependencies]
-app = ["streamlit>=1.35", "plotly>=5.20", "pandas>=2.0"]
-dev = ["pytest>=8", "ruff>=0.5"]
+data = ["pandas>=2.0", "yfinance>=0.2.40"]
+app = ["bsplus[data]", "streamlit>=1.35", "plotly>=5.20"]
+examples = ["bsplus[data]", "matplotlib>=3.7"]
+dev = ["bsplus[app,examples]", "pytest>=8", "ruff>=0.5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -31,3 +33,4 @@ select = ["E", "F", "W", "I", "B", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "app/dashboard.py" = ["E402"]  # imports follow the sys.path bootstrap
+"examples/*.py" = ["E501"]  # long lines are a Markdown report template

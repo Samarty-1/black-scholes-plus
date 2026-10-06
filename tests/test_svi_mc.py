@@ -60,3 +60,30 @@ def test_geometric_asian_matches_its_own_mc():
     logp = np.log(100) + np.cumsum((0.03 - 0.02) * dt + 0.2 * np.sqrt(dt) * z, axis=1)
     pay = np.exp(-0.03 * 0.5) * np.maximum(np.exp(logp.mean(axis=1)) - 95, 0)
     assert abs(pay.mean() - exact) < 4 * pay.std() / np.sqrt(pay.size)
+
+
+def test_svi_does_not_bend_past_the_last_quote():
+    # Regression: the dashboard's default 90-day slice (seed 42, 0.3 vol-pt
+    # noise) used to fit b=1.5, rho=0.97 with the vertex beyond the last
+    # quote, so the smile shot up 2 vol points just 5% past the data.
+    p = heston.HestonParams(0.2**2, 1.5, 0.24**2, 0.6, -0.65)
+    rng = np.random.default_rng(42)
+    for days in (30, 90):
+        t = days / 365
+        strikes = 100 * np.exp(np.linspace(-0.35, 0.25, 13) * np.sqrt(max(t, 0.25)))
+        vols = heston.implied_vol_smile(100, strikes, t, 0.04, p) + rng.normal(0, 0.003, 13)
+    fwd = 100 * np.exp(0.04 * t)
+    fit = svi.fit(np.log(strikes / fwd), vols, t)
+    k = np.log(strikes / fwd)
+    assert k.min() <= fit.params.m <= k.max()
+    beyond = strikes.max() * 1.05
+    truth = heston.implied_vol_smile(100, beyond, t, 0.04, p)[0]
+    assert abs(svi.implied_vol(np.log(beyond / fwd), t, fit.params) - truth) < 0.005
+
+
+def test_calendar_crossings_detects_crossed_slices():
+    short = svi.SVIParams(a=0.01, b=0.1, rho=-0.5, m=0.0, s=0.1)
+    longer = svi.SVIParams(a=0.03, b=0.1, rho=-0.5, m=0.0, s=0.1)
+    k = np.linspace(-1, 1, 201)
+    assert svi.calendar_crossings([(0.25, short), (1.0, longer)], k)[0][1] == 0.0
+    assert svi.calendar_crossings([(0.25, longer), (1.0, short)], k)[0][1] == 1.0

@@ -104,3 +104,14 @@ def test_greeks_degenerate_are_nan_but_price_defined():
     g = bs.greeks(100, 100, 0.0, 0.05, 0.2, "call")
     assert g.price == 0.0
     assert np.isnan(g.delta)
+
+
+def test_accepts_pandas_string_column_for_option_type():
+    import pandas as pd
+
+    types = pd.Series(["call", "put", "CALL"])
+    vec = bs.price(100, 100, 1.0, 0.02, 0.2, types.to_numpy())
+    assert vec[0] == pytest.approx(vec[2])
+    assert vec[1] == pytest.approx(bs.price(100, 100, 1.0, 0.02, 0.2, "put"))
+    with pytest.raises(TypeError):
+        bs.price(100, 100, 1.0, 0.02, 0.2, [1, 2])
